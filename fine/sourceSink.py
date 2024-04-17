@@ -339,7 +339,7 @@ class Source(Component):
         # commodityCostTimeSeries
         self.commodityCostTimeSeries = commodityCostTimeSeries
         self.fullCommodityCostTimeSeries = utils.checkAndSetInvestmentPeriodTimeSeries(
-            esM, name, commodityCostTimeSeries, locationalEligibility
+            esM, name, commodityCostTimeSeries, locationalEligibility, allowNegative=True
         )
         self.aggregatedCommodityCostTimeSeries = dict.fromkeys(esM.investmentPeriods)
         self.processedCommodityCostTimeSeries = dict.fromkeys(esM.investmentPeriods)
@@ -349,7 +349,7 @@ class Source(Component):
         self.fullCommodityRevenueTimeSeries = {}
         self.fullCommodityRevenueTimeSeries = (
             utils.checkAndSetInvestmentPeriodTimeSeries(
-                esM, name, commodityRevenueTimeSeries, locationalEligibility
+                esM, name, commodityRevenueTimeSeries, locationalEligibility, allowNegative=True
             )
         )
         self.aggregatedCommodityRevenueTimeSeries = dict.fromkeys(esM.investmentPeriods)

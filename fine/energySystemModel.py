@@ -83,6 +83,7 @@ class EnergySystemModel:
         balanceLimit=None,
         pathwayBalanceLimit=None,
         annuityPerpetuity=False,
+        generalizeTimeSeries=False
     ):
         """
         Constructor for creating an EnergySystemModel class instance
@@ -244,6 +245,13 @@ class EnergySystemModel:
             |br| * the default value is False
         :type: annuityPerpetuity: bool
 
+        :param generalizeTimeSeries: if set to True, time series can also be provided without a location index
+            and are getting generalized for all locations in the system.
+
+            If false, an error will be raised reminding to set the time series for all locations.
+
+            |br| * the default value is False
+        :type: generalizeTimeSeries: bool
         """
 
         # Check correctness of inputs
@@ -424,6 +432,7 @@ class EnergySystemModel:
         # The optimization solver logging can be separately enabled in the optimizationSpecs of the optimize function.
         self.verbose = verboseLogLevel
         self.verboseLogLevel = verboseLogLevel  # TODO replace
+        self.generalizeTimeSeries = generalizeTimeSeries
 
     def add(self, component):
         """
