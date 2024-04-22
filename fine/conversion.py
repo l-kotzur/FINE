@@ -1158,6 +1158,68 @@ class ConversionModel(ComponentModel):
 
         return sumCommisYearIndependent + sumCommisYearDependent
 
+
+
+    def getCommodityContribution(self, pyM, commod, compName, loc, ip):
+        """Get resulting contribution to a commodity balance of a specific component.
+                .. math::
+
+            \\text{C}^{comp,comm}_{loc,ip,p,t} = - op_{loc,ip,p,t}^{comp,op}  \\text{Sink}
+
+        .. math::
+            \\text{C}^{comp,comm}_{loc,ip,p,t} = op_{loc,ip,p,t}^{comp,op} \\text{Source}
+        """
+
+        compDict, abbrvName = self.componentsDict, self.abbrvName
+        opVar = getattr(pyM, "op_" + abbrvName)
+        opCommisVar = getattr(pyM, "op_commis_" + abbrvName)
+        opVarDict = getattr(pyM, "operationVarDict_" + abbrvName)
+
+        if compName not in opVarDict[0][loc]:
+            return 0
+        
+        def getFactor(commodCommodityConversionFactors, loc, p, t):
+            if isinstance(commodCommodityConversionFactors, (int, float)):
+                return commodCommodityConversionFactors
+            else:
+                return commodCommodityConversionFactors[loc][p, t]
+
+        # 1. get balance for compontents, which do not have commodity conversions varying with the commissioning year
+        # prepare data
+        if  len(list(compDict[compName].fullCommodityConversionFactors.values())[0]) > 0:
+            conversionFactors = compDict[compName].fullCommodityConversionFactors[(ip, loc)]
+        else:
+            conversionFactors = compDict[compName].commodityConversionFactors
+
+        if not compDict[compName].isCommisDepending and commod in conversionFactors:
+
+            
+            sumCommisYearIndependent = self._operationVariablesOptimum[ip].loc[compName,loc]* \
+                                        conversionFactors[commod]
+        # 2. commodity conversions factors is depending on the commissioning year (e.g. efficiencies) if
+        # a) component has isCommisDepending
+        # b) component processes the commodity
+        sumCommisYearDependent = 0
+        if any(compDict[comp].isCommisDepending for comp in opVarDict[0][loc]):
+            # TODO implement dataframe similar to cost consideration
+            if compDict[compName].isCommisDepending:
+                commodConv = compDict[compName].processedCommodityConversionFactors
+                relevantCommissioningYears = [
+                    x for (x, y) in commodConv.keys() if y == ip
+                ]
+                for _commis in relevantCommissioningYears:
+                    if (
+                        commod
+                        in conversionFactors
+                    ):
+                        sumCommisYearDependent += self._operationVariablesOptimum[ip].loc[compName,loc]* \
+                            conversionFactors[commod]
+
+        return sumCommisYearIndependent + sumCommisYearDependent
+
+
+
+
     def getObjectiveFunctionContribution(self, esM, pyM):
         """
         Get contribution to the objective function.

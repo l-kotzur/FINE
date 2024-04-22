@@ -1680,6 +1680,24 @@ class StorageModel(ComponentModel):
             if commod == self.componentsDict[compName].commodity
         )
 
+
+    def getCommodityContribution(self, pyM, commod, compName, loc, ip):
+        """Get resulting contribution to a commodity balance of a specific component.
+                .. math::
+
+            \\text{C}^{comp,comm}_{loc,ip,p,t} = - op_{loc,ip,p,t}^{comp,op}  \\text{Sink}
+
+        .. math::
+            \\text{C}^{comp,comm}_{loc,ip,p,t} = op_{loc,ip,p,t}^{comp,op} \\text{Source}
+        """
+        abbrvName = self.abbrvName
+
+        if commod == self.componentsDict[compName].commodity:
+            return self._dischargeOperationVariablesOptimum[ip].loc[compName,loc]- self._chargeOperationVariablesOptimum[ip].loc[compName,loc]
+        else:
+            return 0
+
+
     def getObjectiveFunctionContribution(self, esM, pyM):
         """
         Get contribution to the objective function.
