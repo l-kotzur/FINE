@@ -1108,13 +1108,6 @@ def checkAndSetTimeSeries(
                 data = operationTimeSeries.copy().sum()
                 data[data > 0] = 1
 
-                if (data > locationalEligibility).any().any():
-                    raise ValueError(
-                        "The locationalEligibility and "
-                        + name
-                        + " parameters indicate different"
-                        + " eligibilities."
-                    )
 
         elif dimension == "2dim":
             keys = {
@@ -1274,12 +1267,12 @@ def checkAndSetCostParameter(esM, name, data, dimension, locationalEligibility):
 
     if dimension == "1dim":
         if isinstance(data, int) or isinstance(data, float):
-            if data < 0:
-                raise ValueError(
-                    "Value error in "
-                    + name
-                    + " detected.\n Economic parameters have to be positive."
-                )
+            # if data < 0:
+            #     raise ValueError(
+            #         "Value error in "
+            #         + name
+            #         + " detected.\n Economic parameters have to be positive."
+            #     )
             return pd.Series(
                 [float(data) for loc in esM.locations], index=esM.locations
             )
