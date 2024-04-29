@@ -339,7 +339,7 @@ class Source(Component):
         # commodityCostTimeSeries
         self.commodityCostTimeSeries = commodityCostTimeSeries
         self.fullCommodityCostTimeSeries = utils.checkAndSetInvestmentPeriodTimeSeries(
-            esM, name, commodityCostTimeSeries, locationalEligibility
+            esM, name, commodityCostTimeSeries, locationalEligibility, allowNegative=True
         )
         self.aggregatedCommodityCostTimeSeries = dict.fromkeys(esM.investmentPeriods)
         self.processedCommodityCostTimeSeries = dict.fromkeys(esM.investmentPeriods)
@@ -349,7 +349,7 @@ class Source(Component):
         self.fullCommodityRevenueTimeSeries = {}
         self.fullCommodityRevenueTimeSeries = (
             utils.checkAndSetInvestmentPeriodTimeSeries(
-                esM, name, commodityRevenueTimeSeries, locationalEligibility
+                esM, name, commodityRevenueTimeSeries, locationalEligibility, allowNegative=True
             )
         )
         self.aggregatedCommodityRevenueTimeSeries = dict.fromkeys(esM.investmentPeriods)
@@ -1068,6 +1068,24 @@ class SourceSinkModel(ComponentModel):
             for compName in opVarDict[ip][loc]
             if compDict[compName].commodity == commod
         )
+
+
+    def getCommodityContribution(self, pyM, commod, compName, loc, ip):
+        """Get resulting contribution to a commodity balance of a specific component.
+                .. math::
+
+            \\text{C}^{comp,comm}_{loc,ip,p,t} = - op_{loc,ip,p,t}^{comp,op}  \\text{Sink}
+
+        .. math::
+            \\text{C}^{comp,comm}_{loc,ip,p,t} = op_{loc,ip,p,t}^{comp,op} \\text{Source}
+        """
+
+        if self.componentsDict[compName].commodity == commod:
+            return self._operationVariablesOptimum[ip].loc[compName,loc]  * self.componentsDict[compName].sign
+        else:
+            return 0
+
+
 
     def getObjectiveFunctionContribution(self, esM, pyM):
         """

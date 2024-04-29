@@ -822,6 +822,46 @@ class TransmissionModel(ComponentModel):
             if commod == compDict[compName].commodity
         )
 
+
+    def getCommodityContribution(self, pyM, commod, compName, loc, ip):
+        """Get resulting contribution to a commodity balance of a specific component.
+                .. math::
+
+            \\text{C}^{comp,comm}_{loc,ip,p,t} = - op_{loc,ip,p,t}^{comp,op}  \\text{Sink}
+
+        .. math::
+            \\text{C}^{comp,comm}_{loc,ip,p,t} = op_{loc,ip,p,t}^{comp,op} \\text{Source}
+        """
+
+        compDict, abbrvName = self.componentsDict, self.abbrvName
+        opVar, opVarDictIn = (
+            getattr(pyM, "op_" + abbrvName),
+            getattr(pyM, "operationVarDictIn_" + abbrvName),
+        )
+        opVarDictOut = getattr(pyM, "operationVarDictOut_" + abbrvName)
+
+        if commod == compDict[compName].commodity:
+
+
+            return sum(
+                self._operationVariablesOptimum[ip].loc[compName,loc_, loc]
+                * (
+                    1
+                    - compDict[compName].losses[loc_ + "_" + loc]
+                    * compDict[compName].distances[loc_ + "_" + loc]
+                )
+                    for loc_ in opVarDictIn[0][loc].keys()
+                    if loc != loc_
+                ) - sum(
+                self._operationVariablesOptimum[ip].loc[compName,loc, loc_]
+                    for loc_ in opVarDictOut[0][loc].keys()
+                    if loc != loc_
+            )
+        else:
+            return 0
+
+
+
     def getBalanceLimitContribution(
         self, esM, pyM, ID, ip, loc, timeSeriesAggregation, componentNames
     ):

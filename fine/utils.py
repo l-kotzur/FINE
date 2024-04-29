@@ -1038,7 +1038,7 @@ def setLocationalEligibility(
 
 
 def checkAndSetInvestmentPeriodTimeSeries(
-    esM, name, data, locationalEligibility, dimension="1dim"
+    esM, name, data, locationalEligibility, dimension="1dim", allowNegative=False
 ):
     checkInvestmentPeriodParameters(name, data, esM.investmentPeriodNames)
     parameter = {}
@@ -1051,11 +1051,11 @@ def checkAndSetInvestmentPeriodTimeSeries(
             or isinstance(data, pd.Series)
         ):
             parameter[ip] = checkAndSetTimeSeries(
-                esM, name, data, locationalEligibility, dimension
+                esM, name, data, locationalEligibility, dimension, allowNegative
             )
         elif isinstance(data, dict):
             parameter[ip] = checkAndSetTimeSeries(
-                esM, name, data[_ip], locationalEligibility, dimension
+                esM, name, data[_ip], locationalEligibility, dimension, allowNegative
             )
         else:
             raise TypeError(
@@ -1064,15 +1064,20 @@ def checkAndSetInvestmentPeriodTimeSeries(
     return parameter
 
 
+
 def checkAndSetTimeSeries(
-    esM, name, operationTimeSeries, locationalEligibility, dimension="1dim"
+    esM, name, operationTimeSeries, locationalEligibility, dimension="1dim", allowNegative=False
 ):
     if operationTimeSeries is not None:
         if not isinstance(operationTimeSeries, pd.DataFrame):
-            if len(esM.locations) == 1:
+            if len(esM.locations) == 1 or esM.generalizeTimeSeries:
                 if isinstance(operationTimeSeries, pd.Series):
+                    if len(esM.locations) == 1:
+                        data = operationTimeSeries.values
+                    else:
+                        data = np.array([operationTimeSeries.values]*len(esM.locations)).T
                     operationTimeSeries = pd.DataFrame(
-                        operationTimeSeries.values,
+                        data,
                         index=operationTimeSeries.index,
                         columns=list(esM.locations),
                     )
@@ -1157,7 +1162,7 @@ def checkAndSetTimeSeries(
                 + " detected.\n"
                 + "An operationTimeSeries parameter contains values which are not numbers."
             )
-        if (_operationTimeSeries < 0).any().any():
+        if not allowNegative and (_operationTimeSeries < 0).any().any():
             raise ValueError(
                 "Value error in "
                 + name

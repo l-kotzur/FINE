@@ -9,6 +9,7 @@ import pandas as pd
 import psutil
 import pyomo.environ as pyomo
 import pyomo.opt as opt
+from pyomo.contrib import appsi
 from tsam.timeseriesaggregation import TimeSeriesAggregation
 
 from fine import utils
@@ -84,6 +85,7 @@ class EnergySystemModel:
         balanceLimit=None,
         pathwayBalanceLimit=None,
         annuityPerpetuity=False,
+        generalizeTimeSeries=False
     ):
         """
         Constructor for creating an EnergySystemModel class instance
@@ -245,6 +247,13 @@ class EnergySystemModel:
             |br| * the default value is False
         :type: annuityPerpetuity: bool
 
+        :param generalizeTimeSeries: if set to True, time series can also be provided without a location index
+            and are getting generalized for all locations in the system.
+
+            If false, an error will be raised reminding to set the time series for all locations.
+
+            |br| * the default value is False
+        :type: generalizeTimeSeries: bool
         """
 
         # Check correctness of inputs
@@ -425,6 +434,7 @@ class EnergySystemModel:
         # The optimization solver logging can be separately enabled in the optimizationSpecs of the optimize function.
         self.verbose = verboseLogLevel
         self.verboseLogLevel = verboseLogLevel  # TODO replace
+        self.generalizeTimeSeries = generalizeTimeSeries
 
     def add(self, component):
         """
@@ -1996,9 +2006,9 @@ class EnergySystemModel:
 
         # Check which solvers are available and choose default solver if no solver is specified explicitely
         # Order of possible solvers in solverList defines the priority of chosen default solver.
-        solverList = ["gurobi", "glpk", "cbc"]
+        solverList = ["gurobi", "glpk", "cbc", "highs"]
 
-        if solver != "None":
+        if solver != "None" and solver != "highs":
             try:
                 opt.SolverFactory(solver).available()
             except Exception:
@@ -2036,7 +2046,8 @@ class EnergySystemModel:
             # Use the direct gurobi solver that uses the Python API.
             optimizer = opt.SolverFactory(solver, solver_io="python")
         else:
-            optimizer = opt.SolverFactory(solver)
+            if solver != "highs":
+                optimizer = opt.SolverFactory(solver)
 
         # Set, if specified, the time limit
         if self.solverSpecs["timeLimit"] is not None and solver == "gurobi":
@@ -2065,67 +2076,87 @@ class EnergySystemModel:
         elif solver == "glpk":
             optimizer.set_options(optimizationSpecs)
             solver_info = optimizer.solve(self.pyM, tee=True)
+        elif solver == "highs":
+            optimizer = appsi.solvers.Highs()
+            optimizer.config.stream_solver = True
+            # solve
+            try:
+                solver_info = optimizer.solve(self.pyM)
+            except Exception as e:
+                if "A feasible solution was not found" in str(e):
+                    print(e)
+                    return False
+                else:
+                    raise e
+
         else:
             solver_info = optimizer.solve(self.pyM, tee=True)
         self.solverSpecs["solvetime"] = time.time() - timeStart
-        utils.output(solver_info.solver(), self.verbose, 0), utils.output(
-            solver_info.problem(), self.verbose, 0
-        )
+
         utils.output(
             "Solve time: " + str(self.solverSpecs["solvetime"]) + " sec.",
             self.verbose,
             0,
         )
 
-        ################################################################################################################
-        #                                      Post-process optimization output                                        #
-        ################################################################################################################
-
         _t = time.time()
+        solution_found = True
 
-        # Post-process the optimization output by differentiating between different solver statuses and termination
-        # conditions. First, check if the status and termination_condition of the optimization are acceptable.
-        # If not, no output is generated.
-        # TODO check if this is still compatible with the latest pyomo version
-        status, termCondition = (
-            solver_info.solver.status,
-            solver_info.solver.termination_condition,
-        )
-        self.solverSpecs["status"] = str(status)
-        self.solverSpecs["terminationCondition"] = str(termCondition)
-        if (
-            status == opt.SolverStatus.error
-            or status == opt.SolverStatus.aborted
-            or status == opt.SolverStatus.unknown
-        ):
-            utils.output(
-                "Solver status:  "
-                + str(status)
-                + ", termination condition:  "
-                + str(termCondition)
-                + ". No output is generated.",
-                self.verbose,
-                0,
+        if solver != "highs":
+            utils.output(solver_info.solver(), self.verbose, 0), utils.output(
+                solver_info.problem(), self.verbose, 0
             )
-        elif (
-            solver_info.solver.termination_condition
-            == opt.TerminationCondition.infeasibleOrUnbounded
-            or solver_info.solver.termination_condition
-            == opt.TerminationCondition.infeasible
-            or solver_info.solver.termination_condition
-            == opt.TerminationCondition.unbounded
-        ):
-            utils.output(
-                "Optimization problem is "
-                + str(solver_info.solver.termination_condition)
-                + ". No output is generated.",
-                self.verbose,
-                0,
+
+            ################################################################################################################
+            #                                      Post-process optimization output                                        #
+            ################################################################################################################
+
+
+            # Post-process the optimization output by differentiating between different solver statuses and termination
+            # conditions. First, check if the status and termination_condition of the optimization are acceptable.
+            # If not, no output is generated.
+            # TODO check if this is still compatible with the latest pyomo version
+            status, termCondition = (
+                solver_info.solver.status,
+                solver_info.solver.termination_condition,
             )
-        else:
+            self.solverSpecs["status"] = str(status)
+            self.solverSpecs["terminationCondition"] = str(termCondition)
+            if (
+                status == opt.SolverStatus.error
+                or status == opt.SolverStatus.aborted
+                or status == opt.SolverStatus.unknown
+            ):
+                utils.output(
+                    "Solver status:  "
+                    + str(status)
+                    + ", termination condition:  "
+                    + str(termCondition)
+                    + ". No output is generated.",
+                    self.verbose,
+                    0,
+                )
+                solution_found = False
+            elif (
+                solver_info.solver.termination_condition
+                == opt.TerminationCondition.infeasibleOrUnbounded
+                or solver_info.solver.termination_condition
+                == opt.TerminationCondition.infeasible
+                or solver_info.solver.termination_condition
+                == opt.TerminationCondition.unbounded
+            ):
+                utils.output(
+                    "Optimization problem is "
+                    + str(solver_info.solver.termination_condition)
+                    + ". No output is generated.",
+                    self.verbose,
+                    0,
+                )
+                solution_found = False
+        if solution_found:
             # If the solver status is not okay (hence either has a warning, an error, was aborted or has an unknown
             # status), show a warning message.
-            if (
+            if solver != "highs" and (
                 not solver_info.solver.termination_condition
                 == opt.TerminationCondition.optimal
                 and self.verbose < 2
