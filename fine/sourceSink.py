@@ -1081,7 +1081,10 @@ class SourceSinkModel(ComponentModel):
         """
 
         if self.componentsDict[compName].commodity == commod:
-            return self._operationVariablesOptimum[ip].loc[compName,loc]  * self.componentsDict[compName].sign
+            if (compName, loc) in self._operationVariablesOptimum[ip].index:
+                return self._operationVariablesOptimum[ip].loc[compName,loc]  * self.componentsDict[compName].sign
+            else:
+                return 0
         else:
             return 0
 

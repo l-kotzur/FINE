@@ -1692,7 +1692,7 @@ class StorageModel(ComponentModel):
         """
         abbrvName = self.abbrvName
 
-        if commod == self.componentsDict[compName].commodity and self.componentsDict[compName].locationalEligibility[loc]:
+        if self.hasOpVariablesForLocationCommodity(None,loc, commod):
             return self._dischargeOperationVariablesOptimum[ip].loc[compName,loc] - self._chargeOperationVariablesOptimum[ip].loc[compName,loc]
         else:
             return 0
