@@ -1191,6 +1191,8 @@ class ConversionModel(ComponentModel):
         else:
             conversionFactors = compDict[compName].commodityConversionFactors
 
+
+        sumCommisYearIndependent = 0
         if not compDict[compName].isCommisDepending and commod in conversionFactors:
 
             

@@ -484,20 +484,20 @@ def checkLocationSpecficDesignInputParams(comp, esM):
                     raise ValueError(
                         "CapacityFix values are provided for non-eligible locations."
                     )
-            if capacityMax[ip] is not None:
-                data = capacityMax[ip].copy()
-                data[data > 0] = 1
-                if (data != locationalEligibility).any():
-                    raise ValueError(
-                        "The locationalEligibility and capacityMax parameters indicate different eligibilities."
-                    )
-            if capacityMin[ip] is not None:
-                data = capacityMin[ip].copy()
-                data[data > 0] = 1
-                if (data > locationalEligibility).any():
-                    raise ValueError(
-                        "The locationalEligibility and capacityMin parameters indicate different eligibilities."
-                    )
+            # if capacityMax[ip] is not None:
+            #     data = capacityMax[ip].copy()
+            #     data[data > 0] = 1
+            #     if (data != locationalEligibility).any():
+            #         raise ValueError(
+            #             "The locationalEligibility and capacityMax parameters indicate different eligibilities."
+            #         )
+            # if capacityMin[ip] is not None:
+            #     data = capacityMin[ip].copy()
+            #     data[data > 0] = 1
+            #     if (data > locationalEligibility).any():
+            #         raise ValueError(
+            #             "The locationalEligibility and capacityMin parameters indicate different eligibilities."
+            #         )
 
         if isBuiltFix is not None:
             # Check if values are either one or zero
@@ -1023,18 +1023,24 @@ def setLocationalEligibility(
 
             # First setup series with only 0
             if dimension == "1dim":
-                regions = esM.locations
+                regions = list(esM.locations)
             else:
-                firstYear = sorted(data.keys())[0]
-                regions = data[firstYear].index
-            _data = pd.Series(index=sorted(regions), data=0)
+                regions = [
+                    loc1 + "_" + loc2
+                    for loc1 in esM.locations
+                    for loc2 in esM.locations
+                    if loc1 != loc2
+                ]
+            
+            _data = pd.DataFrame(0, index=regions, columns=esM.investmentPeriods)
 
             # set location eligibility to 1 if capacity bound exists
             for ip in esM.investmentPeriods:
                 loc_idx = data[ip][data[ip] > 0].index
-                _data[loc_idx] = 1
+                _data.loc[loc_idx, ip] = 1
 
-            return _data
+
+            return _data.any(axis=1)
 
 
 def checkAndSetInvestmentPeriodTimeSeries(
@@ -1107,13 +1113,6 @@ def checkAndSetTimeSeries(
                 data = operationTimeSeries.copy().sum()
                 data[data > 0] = 1
 
-                if (data > locationalEligibility).any().any():
-                    raise ValueError(
-                        "The locationalEligibility and "
-                        + name
-                        + " parameters indicate different"
-                        + " eligibilities."
-                    )
 
         elif dimension == "2dim":
             keys = {
@@ -1194,7 +1193,12 @@ def checkDesignVariableModelingParameters(
         )
 
     if not isinstance(hasIsBuiltBinaryVariable, bool):
-        raise TypeError("The hasCapacityVariable variable domain has to be a boolean.")
+        try:
+            hasIsBuiltBinaryVariable = bool(hasIsBuiltBinaryVariable)
+        except:
+            raise TypeError(
+                "The hasIsBuiltBinaryVariable variable domain has to be a boolean."
+            )
 
     isStrictlyPositiveNumber(capacityPerPlantUnit)
 
@@ -1272,12 +1276,12 @@ def checkAndSetCostParameter(esM, name, data, dimension, locationalEligibility):
 
     if dimension == "1dim":
         if isinstance(data, int) or isinstance(data, float):
-            if data < 0:
-                raise ValueError(
-                    "Value error in "
-                    + name
-                    + " detected.\n Economic parameters have to be positive."
-                )
+            # if data < 0:
+            #     raise ValueError(
+            #         "Value error in "
+            #         + name
+            #         + " detected.\n Economic parameters have to be positive."
+            #     )
             return pd.Series(
                 [float(data) for loc in esM.locations], index=esM.locations
             )
