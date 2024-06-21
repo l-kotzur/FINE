@@ -823,7 +823,7 @@ class TransmissionModel(ComponentModel):
         )
 
 
-    def getCommodityContribution(self, pyM, commod, compName, loc, ip):
+    def getCommodityContribution(self, pyM, commod, compName, loc, ip, getInOut=False):
         """Get resulting contribution to a commodity balance of a specific component.
                 .. math::
 
@@ -841,9 +841,8 @@ class TransmissionModel(ComponentModel):
         opVarDictOut = getattr(pyM, "operationVarDictOut_" + abbrvName)
 
         if commod == compDict[compName].commodity:
-
-
-            return sum(
+            
+            inflow = sum(
                 self._operationVariablesOptimum[ip].loc[compName,loc_, loc]
                 * (
                     1
@@ -852,11 +851,18 @@ class TransmissionModel(ComponentModel):
                 )
                     for loc_ in opVarDictIn[0][loc].keys()
                     if loc != loc_
-                ) - sum(
+                ) 
+            
+            outflow = sum(
                 self._operationVariablesOptimum[ip].loc[compName,loc, loc_]
                     for loc_ in opVarDictOut[0][loc].keys()
                     if loc != loc_
             )
+
+            if getInOut:
+                return inflow, outflow
+            else:
+                return inflow - outflow
         else:
             return 0
 
