@@ -207,10 +207,10 @@ class Transmission(Component):
         for loc1 in esM.locations:
             for loc2 in esM.locations:
                 if loc1 + "_" + loc2 in self.locationalEligibility.index:
-                    if self.locationalEligibility[loc1 + "_" + loc2] == 0:
-                        self.locationalEligibility.drop(
-                            labels=loc1 + "_" + loc2, inplace=True
-                        )
+                    # if self.locationalEligibility[loc1 + "_" + loc2] == 0:
+                    #     self.locationalEligibility.drop(
+                    #         labels=loc1 + "_" + loc2, inplace=True
+                    #     )
                     self._mapC.update({loc1 + "_" + loc2: (loc1, loc2)})
                     self._mapL.setdefault(loc1, {}).update({loc2: loc1 + "_" + loc2})
                     self._mapI.update({loc1 + "_" + loc2: loc2 + "_" + loc1})
@@ -840,7 +840,7 @@ class TransmissionModel(ComponentModel):
         )
         opVarDictOut = getattr(pyM, "operationVarDictOut_" + abbrvName)
 
-        if commod == compDict[compName].commodity:
+        if commod == compDict[compName].commodity and self._operationVariablesOptimum[ip] is not None:
             
             inflow = sum(
                 self._operationVariablesOptimum[ip].loc[compName,loc_, loc]
